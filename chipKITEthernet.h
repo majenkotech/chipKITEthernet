@@ -178,6 +178,67 @@ public:
   void SetSecTimeout(unsigned int cSecTimeout);
 };
 
+typedef struct sTelnetClient{
+    TCP_SOCKET socket;
+    char *buffer;
+    uint8_t phase;
+    uint8_t iac_cmd;
+    uint8_t iac_code;
+    boolean echo;
+    void (*inputHandler)(struct sTelnetClient *);
+    void (*keypressHandler)(struct sTelnetClient *, int);
+    char *prompt;
+    struct sTelnetClient *next;
+} TelnetClient;
+
+typedef struct sTelnetCommand {
+    char *command;
+    int (*function)(TelnetClient *, int argc, char **argv);
+    struct sTelnetCommand *next;
+} TelnetCommand;
+
+#define IAC 255
+
+#define WILL 251
+#define WONT 252
+#define DO 253
+#define DONT 254
+
+#define TELNET_BUFSZ 80
+
+class TelnetServer {
+    private:
+        TelnetClient *_clients;
+        TelnetCommand *_commands;
+        uint16_t _port;
+        Server *_server;
+        void (*_connectHandler)(TelnetClient *);
+
+        TelnetClient *findByClient(Client *);
+        void addClient(Client *);
+        void deleteClient(TelnetClient *);
+        void serveClient(TelnetClient *);
+        void sendIAC(Client *, uint8_t, uint8_t);
+        boolean executeCommand(TelnetClient *c);
+
+    public:
+        TelnetServer();
+        TelnetServer(uint16_t port);
+        void begin();
+        void serve();
+        void setPrompt(TelnetClient *, char *prompt);
+        void setConnectHandler(void (*func)(TelnetClient *));
+        void setKeypressHandler(TelnetClient *, void (*func)(TelnetClient *, int));
+        void setInputHandler(TelnetClient *, void (*func)(TelnetClient *));
+        void clearConnectHandler();
+        void clearKeypressHandler(TelnetClient *);
+        void clearInputHandler(TelnetClient *);
+        void addCommand(char *command, int (*function)(TelnetClient *, int argc, char **argv));
+        void disconnect(TelnetClient *);
+        void setEcho(TelnetClient *, boolean);
+
+};
+
 extern ChipKITEthernetClass Ethernet;
 
 #endif  // _CHIPKITETHERNETCLASS_H
